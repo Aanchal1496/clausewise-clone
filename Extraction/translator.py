@@ -7,22 +7,21 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 def translate_clause(clause_text, clause_type, risk_level):
     """Send one clause to Groq (Llama 3), get back a plain English explanation."""
 
-    prompt = f"""You are a friendly legal assistant helping everyday people understand contracts.
-    Explain this like I'm 5 years old.
+    prompt = f"""You are a professional legal analyst. Explain this clause in clear, professional language.
 
-    A user has found this clause:
+    Clause text:
     ---
     {clause_text}
     ---
 
-    Clause Type: {clause_type} | Risk: {risk_level}
+    Clause Type: {clause_type} | Risk Level: {risk_level}
 
-    Your job:
-    1. Explain what this clause ACTUALLY means in very simple words. Use 1-2 emojis.
-    2. State clearly what the user might LOSE or AGREE TO.
-    3. Give one super-simple tip or warning.
+    Provide:
+    1. A concise, professional explanation of what this clause means in plain English.
+    2. What the party is agreeing to or giving up.
+    3. A practical note or recommendation.
 
-    Keep it friendly, short (under 70 words), and use NO legal jargon."""
+    Keep it under 70 words. Use professional, neutral language. No emojis."""
 
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -30,7 +29,7 @@ def translate_clause(clause_text, clause_type, risk_level):
         messages=[
             {
                 "role": "system",
-                "content": "You are a friendly legal assistant who explains contracts in super simple English with emojis."
+                "content": "You are a professional legal analyst who explains contract clauses in clear, professional plain English. Do not use emojis or casual language."
             },
             {
                 "role": "user",

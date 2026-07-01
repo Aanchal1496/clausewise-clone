@@ -4,19 +4,19 @@ def get_verdict(safety_score):
         return {
             'verdict':      'safe',
             'color':        'green',
-            'summary':      'This contract looks relatively standard. Still read it fully before signing! ✅',
+            'summary':      'This contract appears to be relatively standard. A full review is still recommended before signing.',
         }
     elif safety_score >= 50:
         return {
             'verdict':      'medium',
             'color':        'amber',
-            'summary':      'This contract has some concerning clauses. Review carefully before signing! ⚠️',
+            'summary':      'This contract contains several clauses that warrant careful review before signing.',
         }
     else:
         return {
             'verdict':      'unsafe',
             'color':        'red',
-            'summary':      'This contract has serious red flags. Do not sign without legal advice! 🚩',
+            'summary':      'This contract contains serious red flags. Legal advice is strongly recommended before signing.',
         }
 
 

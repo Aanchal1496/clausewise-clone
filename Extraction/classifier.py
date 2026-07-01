@@ -45,17 +45,17 @@ RISK_LEVELS = {
 }
 
 PLAIN_ENGLISH = {
-    'auto_renewal':       'Contract renews automatically unless cancelled 🔄',
-    'liability_waiver':   'Company not responsible for damages or losses 🛡️',
-    'arbitration':        'You waive your right to sue in court ⚖️',
-    'data_selling':       'Your data may be sold or shared with third parties 📂',
-    'unilateral_changes': 'Company can change terms without notice 📝',
-    'exit_penalty':       'Early termination fees apply 💸',
-    'price_escalation':   'Price can increase periodically 📈',
-    'jurisdiction':       'Disputes handled in another state or country 🏛️',
-    'ip_ownership':       'Company owns content you create on the platform 🎨',
-    'notice_period':      'Long notice period required to cancel ⏳',
-    'general':            'Standard clause — review for context 📄',
+    'auto_renewal':       'Contract renews automatically unless cancelled by the user within the specified notice period.',
+    'liability_waiver':   'Company disclaims responsibility for damages or losses incurred by the user.',
+    'arbitration':        'User waives the right to pursue claims in court and agrees to binding arbitration.',
+    'data_selling':       'User data may be shared with or sold to third parties.',
+    'unilateral_changes': 'Company reserves the right to modify terms without prior notice to the user.',
+    'exit_penalty':       'Early termination or cancellation may incur financial penalties.',
+    'price_escalation':   'Pricing is subject to increase at specified intervals or under certain conditions.',
+    'jurisdiction':       'Legal disputes must be resolved in a specified jurisdiction, which may differ from the user\'s location.',
+    'ip_ownership':       'Company retains ownership of intellectual property created using its platform.',
+    'notice_period':      'A minimum notice period is required to terminate or cancel the agreement.',
+    'general':            'Standard clause. Review in context of the full agreement.',
 }
 
 # ── Predict clause type using BERT ────────────────────────────────────────────

@@ -7,8 +7,10 @@ HEADING_PATTERNS = [
     r'^(ARTICLE|SECTION|CLAUSE)\s+[\dIVX]+',  # matches: ARTICLE 1, SECTION IV
     r'^WHEREAS',                   # matches: WHEREAS the parties...
     r'^NOW,?\s*THEREFORE',         # matches: NOW THEREFORE
-    r'^[A-Z][A-Z\s]{4,40}$',      # matches: PAYMENT TERMS (all caps line)
 ]
+
+# Separate pattern for all-caps headings — stricter to avoid false splits
+ALL_CAPS_HEADING = r'^[A-Z][A-Z\s]{7,50}$'
 
 def is_heading(line):
     """Check if a line matches any common contract heading patterns."""
@@ -16,6 +18,15 @@ def is_heading(line):
         if re.match(pattern, line):
             return True
     return False
+
+def is_likely_title(line):
+    """Stricter check: all-caps line that looks like a section title, not random text."""
+    if not re.match(ALL_CAPS_HEADING, line):
+        return False
+    # Avoid matching lines with punctuation or common words in all-caps context
+    if ',' in line or '.' in line or 'AND' in line:
+        return False
+    return True
 
 def extract_clauses(pdf_input):
     """
@@ -54,8 +65,11 @@ def extract_clauses(pdf_input):
         if not line:
             continue
 
-        if is_heading(line):
-            if current_clause is not None:
+        is_new_heading = is_heading(line) or is_likely_title(line)
+
+        if is_new_heading:
+            # Skip duplicate consecutive headings (empty title-only clause)
+            if current_clause is not None and current_clause['body']:
                 clauses.append(current_clause)
 
             current_clause = {
@@ -76,10 +90,27 @@ def extract_clauses(pdf_input):
                 'full_text': line
             }
 
-    if current_clause is not None:
+    if current_clause is not None and current_clause['body']:
         clauses.append(current_clause)
+    elif current_clause is not None and not current_clause['body']:
+        # Merge empty trailing heading into last clause if possible
+        if clauses:
+            clauses[-1]['full_text'] += ' ' + current_clause['full_text']
+            clauses[-1]['title'] += ' - ' + current_clause['title']
 
-    # 4. If still no clauses found, return the whole text as one clause
+    # 4. Merge very short clauses (heading only or <10 words) into previous
+    merged = []
+    for c in clauses:
+        word_count = len(c['full_text'].split())
+        if word_count < 10 and merged:
+            merged[-1]['full_text'] += ' ' + c['full_text']
+            merged[-1]['title'] += ' / ' + c['title']
+            merged[-1]['body'].extend(c['body'])
+        else:
+            merged.append(c)
+    clauses = merged
+
+    # 5. If still no clauses found, return the whole text as one clause
     if not clauses and text.strip():
         clauses.append({
             'id': 1,
@@ -87,5 +118,9 @@ def extract_clauses(pdf_input):
             'body': [text.strip()],
             'full_text': text.strip()
         })
+
+    # Re-number IDs sequentially
+    for i, c in enumerate(clauses):
+        c['id'] = i + 1
 
     return clauses
