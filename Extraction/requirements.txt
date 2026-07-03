@@ -13,3 +13,5 @@ loguru
 pdfplumber
 python-dotenv
 python-docx
+gunicorn
+
