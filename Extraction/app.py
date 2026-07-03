@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from extractor import extract_clauses
 from classifier import classify_all
 from translator import translate_all
@@ -13,7 +12,16 @@ from rag_qa import answer_question
 import uuid
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*", "allow_headers": "*", "expose_headers": "*"}})
+
+# ── Manual CORS (more reliable than flask-cors on Railway) ──────────────────
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        resp = app.make_default_options_response()
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Headers"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        return resp
 
 @app.after_request
 def add_cors_headers(response):
