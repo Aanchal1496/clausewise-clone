@@ -1,11 +1,18 @@
 from groq import Groq
 import os
 
-# API Key - using environment variable for security
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+_GROQ_AVAILABLE = bool(GROQ_API_KEY)
+
+if _GROQ_AVAILABLE:
+    client = Groq(api_key=GROQ_API_KEY)
+else:
+    client = None
+    print("* WARNING: GROQ_API_KEY not set — skipping AI explanations")
 
 def translate_clause(clause_text, clause_type, risk_level):
-    """Send one clause to Groq (Llama 3), get back a plain English explanation."""
+    if not _GROQ_AVAILABLE:
+        return f"This is a {clause_type.replace('_', ' ')} clause ({risk_level} risk). Review it carefully in context of the full agreement."
 
     prompt = f"""You are a professional legal analyst. Explain this clause in clear, professional language.
 

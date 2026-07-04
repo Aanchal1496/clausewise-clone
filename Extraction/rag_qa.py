@@ -3,11 +3,20 @@ import numpy as np
 from groq import Groq
 from rag_store import embed
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+_GROQ_AVAILABLE = bool(GROQ_API_KEY)
+
+if _GROQ_AVAILABLE:
+    client = Groq(api_key=GROQ_API_KEY)
+else:
+    client = None
 
 def answer_question(question, contract_clauses):
     if not contract_clauses:
         return "Please upload and analyze a contract first before asking questions."
+
+    if not _GROQ_AVAILABLE:
+        return "AI chat is unavailable because the GROQ_API_KEY is not configured on the server."
 
     # 1. Check for explicit clause numbers in the question (e.g., "6", "clause 6", "section 6")
     import re

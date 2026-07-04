@@ -1,6 +1,15 @@
 import os
+import sys
 from dotenv import load_dotenv
 load_dotenv()
+
+# ── Startup validation ───────────────────────────────────────────────────────
+if not os.getenv("GROQ_API_KEY"):
+    print("=" * 60)
+    print("  WARNING: GROQ_API_KEY is not set!")
+    print("  AI explanations and chat will use fallback text.")
+    print("  Set it in Railway dashboard → Variables → GROQ_API_KEY")
+    print("=" * 60)
 
 from flask import Flask, request, jsonify
 from extractor import extract_clauses

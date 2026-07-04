@@ -63,24 +63,24 @@ export const MOCK_ANALYSIS = {
 export const CONTRACT_TYPES = ['MSA', 'Employment', 'NDA', 'Rental', 'TOS', 'Partnership', 'Freelance', 'Other'];
 
 export const RISK_COLORS = {
-  safe:    { bg: 'var(--safe-bg)',    border: 'var(--safe-border)',    text: 'var(--safe)',    label: 'Safe'    },
+  safe: { bg: 'var(--safe-bg)', border: 'var(--safe-border)', text: 'var(--safe)', label: 'Safe' },
   caution: { bg: 'var(--caution-bg)', border: 'var(--caution-border)', text: 'var(--caution)', label: 'Caution' },
-  unsafe:  { bg: 'var(--unsafe-bg)',  border: 'var(--unsafe-border)',  text: 'var(--unsafe)',  label: 'Unsafe'  },
+  unsafe: { bg: 'var(--unsafe-bg)', border: 'var(--unsafe-border)', text: 'var(--unsafe)', label: 'Unsafe' },
 };
 
 // ── NEW: converts your backend response → your frontend shape ─────────────────
 const BACKEND_URL = 'https://clausewise-clone-production.up.railway.app';
-
+// const BACKEND_URL = 'http://localhost:5000'
 function mapRiskLevel(backendLevel) {
-  if (backendLevel === 'high')   return 'unsafe';
+  if (backendLevel === 'high') return 'unsafe';
   if (backendLevel === 'medium') return 'caution';
   return 'safe';
 }
 
 function mapVerdict(backendVerdict) {
-  if (backendVerdict === 'unsafe') return { verdict: 'High Risk',        verdictColor: 'unsafe'  };
-  if (backendVerdict === 'medium') return { verdict: 'Needs Attention',  verdictColor: 'caution' };
-  return                                   { verdict: 'All Clear',        verdictColor: 'safe'    };
+  if (backendVerdict === 'unsafe') return { verdict: 'High Risk', verdictColor: 'unsafe' };
+  if (backendVerdict === 'medium') return { verdict: 'Needs Attention', verdictColor: 'caution' };
+  return { verdict: 'All Clear', verdictColor: 'safe' };
 }
 
 function mapSafetyScore(backendScore) {
@@ -93,16 +93,16 @@ function backendToFrontend(apiResponse, fileName) {
   const clauses = (apiResponse.clauses || []).map((c, i) => {
     const risk = mapRiskLevel(c.risk_level);
     return {
-      id:           `c${c.id || i + 1}`,
-      number:       String(c.id || i + 1),
-      title:        c.title || `Clause ${i + 1}`,
+      id: `c${c.id || i + 1}`,
+      number: String(c.id || i + 1),
+      title: c.title || `Clause ${i + 1}`,
       risk,
       originalText: c.full_text || '',
       plainEnglish: c.ai_explanation || c.plain_english || 'No explanation available.',
-      legalNote:    c.plain_english || '',
-      section:      `Clause ${c.id || i + 1}`,
-      type:         c.type || 'general',
-      confidence:   c.confidence || null,
+      legalNote: c.plain_english || '',
+      section: `Clause ${c.id || i + 1}`,
+      type: c.type || 'general',
+      confidence: c.confidence || null,
     };
   });
 
@@ -110,16 +110,16 @@ function backendToFrontend(apiResponse, fileName) {
   const verdictInfo = mapVerdict(apiResponse.verdict);
 
   return {
-    documentName:  fileName,
-    contractType:  'Contract',
-    safetyScore:   mapSafetyScore(apiResponse.score || 0),
-    verdict:       verdictInfo.verdict,
-    verdictColor:  verdictInfo.verdictColor,
-    summary:       apiResponse.summary || '',
+    documentName: fileName,
+    contractType: 'Contract',
+    safetyScore: mapSafetyScore(apiResponse.score || 0),
+    verdict: verdictInfo.verdict,
+    verdictColor: verdictInfo.verdictColor,
+    summary: apiResponse.summary || '',
     stats: {
-      safe:    counts.low    || clauses.filter(c => c.risk === 'safe').length,
+      safe: counts.low || clauses.filter(c => c.risk === 'safe').length,
       caution: counts.medium || clauses.filter(c => c.risk === 'caution').length,
-      unsafe:  counts.high   || clauses.filter(c => c.risk === 'unsafe').length,
+      unsafe: counts.high || clauses.filter(c => c.risk === 'unsafe').length,
     },
     clauses,
     redFlags: (apiResponse.red_flags || []).map(f => f.title),

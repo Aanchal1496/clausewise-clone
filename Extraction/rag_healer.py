@@ -2,7 +2,13 @@ import os
 from groq import Groq
 from rag_store import retrieve_similar
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+_GROQ_AVAILABLE = bool(GROQ_API_KEY)
+
+if _GROQ_AVAILABLE:
+    client = Groq(api_key=GROQ_API_KEY)
+else:
+    client = None
 
 CONFIDENCE_THRESHOLD = 70.0
 
@@ -22,6 +28,9 @@ JARGON_WORDS = [
 def heal_classification(clause_text, bert_type, bert_confidence):
     if bert_confidence >= CONFIDENCE_THRESHOLD:
         return bert_type, bert_confidence, False   # BERT is confident, no fix needed
+
+    if not _GROQ_AVAILABLE:
+        return bert_type, bert_confidence, False   # no API key, skip healing
 
     similar = retrieve_similar(clause_text, n=3)
     if not similar:
@@ -69,6 +78,9 @@ def is_bad_explanation(text):
     return jargon_count >= 2
 
 def heal_explanation(clause_text, clause_type, risk_level, bad_explanation):
+    if not _GROQ_AVAILABLE:
+        return bad_explanation
+
     similar   = retrieve_similar(clause_text, n=2)
     examples  = ""
     if similar:
