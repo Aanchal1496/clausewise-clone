@@ -10,7 +10,6 @@ chromadb
 sentence-transformers
 loguru
 pdfplumber
-pypdf
 python-dotenv
 python-docx
 gunicorn
