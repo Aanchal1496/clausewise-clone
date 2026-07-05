@@ -150,8 +150,11 @@ def chat():
     data = request.get_json()
     if not data or 'question' not in data:
         return jsonify({'error': 'Send JSON with "question" and "clauses"'}), 400
-    answer = answer_question(data['question'], data.get('clauses', []))
-    return jsonify({'answer': answer})
+    try:
+        answer = answer_question(data['question'], data.get('clauses', []))
+        return jsonify({'answer': answer})
+    except Exception as e:
+        return jsonify({'error': 'Chat processing failed', 'detail': str(e)}), 500
 
 @app.route('/rag-stats')
 def rag_stats():

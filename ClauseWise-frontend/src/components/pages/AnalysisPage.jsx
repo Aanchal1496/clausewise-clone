@@ -155,16 +155,26 @@ export default function AnalysisPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         question: userMessage,
-        clauses: analysisResult?.clauses || []   // your existing context data
+        clauses: analysisResult?.clauses || []
       })
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type');
+    const data = contentType && contentType.includes('application/json')
+      ? await response.json()
+      : { answer: 'Unexpected response from server.' };
 
-    // Replace the "..." with the real answer
+    if (!response.ok) {
+      setChatMessages(prev => [
+        ...prev.slice(0, -1),
+        { role: 'assistant', text: data.error || data.answer || 'Server error. Please try again.' }
+      ]);
+      return;
+    }
+
     setChatMessages(prev => [
       ...prev.slice(0, -1),
-      { role: 'assistant', text: data.answer }
+      { role: 'assistant', text: data.answer || 'No response.' }
     ]);
 
   } catch (err) {
