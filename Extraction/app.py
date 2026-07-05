@@ -154,9 +154,9 @@ def api_analyze():
     with ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(run_pipeline)
         try:
-            result = future.result(timeout=60)
+            result = future.result(timeout=90)
         except TimeoutError:
-            return jsonify({'error': 'Analysis timed out. Check GROQ_API_KEY.'}), 504
+            return jsonify({'error': 'Analysis timed out (90s). Try again or check GROQ_API_KEY.'}), 504
         except Exception as e:
             return jsonify({'error': 'Analysis failed', 'detail': str(e)}), 500
 
