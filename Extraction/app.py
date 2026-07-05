@@ -136,18 +136,33 @@ def api_analyze():
     except Exception as e:
         return jsonify({'error': 'Invalid base64 data'}), 400
 
-    clauses = extract_clauses(pdf_bytes)
-    if not clauses:
-        return jsonify({'error': 'Could not extract text from PDF'}), 400
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-    classified = classify_all(clauses)
-    translated = translate_all(classified)
-    final = score_contract(translated)
-    contract_id = str(uuid.uuid4())
-    store_all_clauses(translated, contract_id=contract_id)
-    final['contract_id'] = contract_id
-    final['extracted_text'] = " ".join([c['full_text'] for c in clauses])
-    return jsonify(final)
+    def run_pipeline():
+        clauses = extract_clauses(pdf_bytes)
+        if not clauses:
+            return None
+        classified = classify_all(clauses)
+        translated = translate_all(classified)
+        final = score_contract(translated)
+        contract_id = str(uuid.uuid4())
+        store_all_clauses(translated, contract_id=contract_id)
+        final['contract_id'] = contract_id
+        final['extracted_text'] = " ".join([c['full_text'] for c in clauses])
+        return final
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(run_pipeline)
+        try:
+            result = future.result(timeout=90)
+        except TimeoutError:
+            return jsonify({'error': 'Analysis timed out (90s). Try again or check GROQ_API_KEY.'}), 504
+        except Exception as e:
+            return jsonify({'error': 'Analysis failed', 'detail': str(e)}), 500
+
+    if result is None:
+        return jsonify({'error': 'Could not extract text from PDF'}), 400
+    return jsonify(result)
 
 @app.errorhandler(500)
 def handle_500(e):
