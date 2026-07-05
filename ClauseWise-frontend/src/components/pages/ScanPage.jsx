@@ -112,7 +112,7 @@ export default function ScanPage() {
 
   } catch (err) {
     console.error('Analysis failed:', err);
-    setError(err.message || 'Analysis failed. Make sure your backend server is running on port 5000.');
+    setError(err.message || 'Analysis failed. Please ensure the backend server is running.');
     setAnalyzing(false);
     setIsAnalyzing(false);
   }
