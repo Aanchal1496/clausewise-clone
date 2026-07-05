@@ -1,4 +1,5 @@
 import re
+import fitz  # PyMuPDF
 
 HEADING_PATTERNS = [
     r'^\d+\.\d*\s+[A-Z]',        # matches: 1. PAYMENT  or  1.1 Terms
@@ -37,29 +38,14 @@ def extract_clauses(pdf_input):
 
     # 1. Get raw text from input
     if isinstance(pdf_input, bytes):
-        text = None
-        # Try pdfplumber first (more reliable on Railway)
         try:
-            import pdfplumber
-            with pdfplumber.open(pdf_input) as pdf:
-                text = ''.join(page.extract_text() or '' for page in pdf.pages)
+            pdf = fitz.open(stream=pdf_input, filetype="pdf")
+            text = ""
+            for page in pdf:
+                text += page.get_text()
+            pdf.close()
         except Exception as e:
-            print(f"pdfplumber failed: {e}, trying fitz...")
-
-        # Fallback to PyMuPDF
-        if text is None:
-            try:
-                import fitz
-                pdf = fitz.open(stream=pdf_input, filetype="pdf")
-                text = ""
-                for page in pdf:
-                    text += page.get_text()
-                pdf.close()
-            except Exception as e:
-                print(f"Error opening PDF with fitz: {e}")
-                return []
-
-        if not text or not text.strip():
+            print(f"Error opening PDF: {e}")
             return []
     elif isinstance(pdf_input, str):
         text = pdf_input
