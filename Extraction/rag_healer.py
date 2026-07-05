@@ -1,4 +1,5 @@
 import os
+import traceback
 from groq import Groq
 from rag_store import retrieve_similar
 
@@ -56,6 +57,7 @@ What is the correct type? Reply with ONLY one of:
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         max_tokens=20,
+        timeout=15,
         messages=[{"role": "user", "content": prompt}]
     )
 
@@ -108,6 +110,7 @@ def heal_explanation(clause_text, clause_type, risk_level, bad_explanation):
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         max_tokens=150,
+        timeout=15,
         messages=[{"role": "user", "content": prompt}]
     )
 

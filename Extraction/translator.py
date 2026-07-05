@@ -1,3 +1,4 @@
+import traceback
 from groq import Groq
 import os
 
@@ -33,6 +34,7 @@ def translate_clause(clause_text, clause_type, risk_level):
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         max_tokens=200,
+        timeout=30,
         messages=[
             {
                 "role": "system",
@@ -70,6 +72,8 @@ def translate_all(clauses):
             except Exception:
                 pass
         except Exception as e:
+            print(f"[translator] translate_clause error on clause {clause.get('id', '?')}: {e}")
+            traceback.print_exc()
             explanation = clause.get('plain_english', 'Could not generate explanation.')
 
         results.append({**clause, 'ai_explanation': explanation})

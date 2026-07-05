@@ -11,7 +11,10 @@ if not os.getenv("GROQ_API_KEY"):
     print("  Set it in Railway dashboard → Variables → GROQ_API_KEY")
     print("=" * 60)
 
+import traceback
+
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from extractor import extract_clauses
 from classifier import classify_all
 from translator import translate_all
@@ -21,23 +24,7 @@ from rag_qa import answer_question
 import uuid
 
 app = Flask(__name__)
-
-# ── Manual CORS (more reliable than flask-cors on Railway) ──────────────────
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        resp = app.make_default_options_response()
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Headers"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        return resp
-
-@app.after_request
-def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    return response
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/')
 def home():
@@ -114,35 +101,88 @@ def report():
 
 @app.route('/analyze-pdf', methods=['POST'])
 def analyze_pdf():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded. Send a PDF as form-data with key "file"'}), 400
+    try:
+        # ── Stage 0: Validate upload ──────────────────────────────────────────
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded. Send a PDF as form-data with key "file"'}), 400
 
-    file = request.files['file']
+        file = request.files['file']
 
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
 
-    if not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': 'Only PDF files are supported'}), 400
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'error': 'Only PDF files are supported'}), 400
 
-    pdf_bytes = file.read()
-    clauses = extract_clauses(pdf_bytes)
+        pdf_bytes = file.read()
+        print("[analyze-pdf] Stage 0: Upload validated")
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 0 error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'Upload validation failed', 'detail': str(e)}), 500
 
-    if not clauses:
-        return jsonify({'error': 'Could not extract text from PDF. It may be a scanned image or protected.'}), 400
+    # ── Stage 1: Extract clauses from PDF ────────────────────────────────────
+    try:
+        print("[analyze-pdf] Stage 1: Extracting clauses...")
+        clauses = extract_clauses(pdf_bytes)
+        print(f"[analyze-pdf] Stage 1: Extracted {len(clauses)} clauses")
+        if not clauses:
+            return jsonify({'error': 'Could not extract text from PDF. It may be a scanned image or protected.'}), 400
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 1 error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'PDF text extraction failed', 'detail': str(e), 'stage': 'extract'}), 500
 
-    classified = classify_all(clauses)
-    translated = translate_all(classified)
-    final      = score_contract(translated)
-    
-    # Store clauses for RAG
-    contract_id = str(uuid.uuid4())
-    store_all_clauses(translated, contract_id=contract_id)
-    final['contract_id'] = contract_id
-    
-    # Optional: Include full text for debugging if needed
-    final['extracted_text'] = " ".join([c['full_text'] for c in clauses])
+    # ── Stage 2: Classify clauses ────────────────────────────────────────────
+    try:
+        print("[analyze-pdf] Stage 2: Classifying clauses...")
+        classified = classify_all(clauses)
+        print(f"[analyze-pdf] Stage 2: Classified {len(classified)} clauses")
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 2 error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'Clause classification failed', 'detail': str(e), 'stage': 'classify'}), 500
 
+    # ── Stage 3: Translate / explain clauses ─────────────────────────────────
+    try:
+        print("[analyze-pdf] Stage 3: Generating explanations...")
+        translated = translate_all(classified)
+        print(f"[analyze-pdf] Stage 3: Translated {len(translated)} clauses")
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 3 error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'AI explanation generation failed', 'detail': str(e), 'stage': 'translate'}), 500
+
+    # ── Stage 4: Score contract ──────────────────────────────────────────────
+    try:
+        print("[analyze-pdf] Stage 4: Scoring contract...")
+        final = score_contract(translated)
+        print(f"[analyze-pdf] Stage 4: Score = {final.get('score')}")
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 4 error: {e}")
+        traceback.print_exc()
+        return jsonify({'error': 'Contract scoring failed', 'detail': str(e), 'stage': 'score'}), 500
+
+    # ── Stage 5: Store in RAG database ───────────────────────────────────────
+    try:
+        print("[analyze-pdf] Stage 5: Storing clauses for Q&A...")
+        contract_id = str(uuid.uuid4())
+        store_all_clauses(translated, contract_id=contract_id)
+        final['contract_id'] = contract_id
+        print(f"[analyze-pdf] Stage 5: Stored with contract_id={contract_id}")
+    except Exception as e:
+        print(f"[analyze-pdf] Stage 5 error (non-fatal): {e}")
+        traceback.print_exc()
+        final['contract_id'] = None
+        final['rag_warning'] = 'Clause storage failed; chat Q&A may be limited'
+
+    # ── Stage 6: Attach extracted text ───────────────────────────────────────
+    try:
+        final['extracted_text'] = " ".join([c['full_text'] for c in clauses])
+    except Exception:
+        pass
+
+    print("[analyze-pdf] Complete — returning result")
     return jsonify(final)
 
 @app.route('/chat', methods=['POST'])

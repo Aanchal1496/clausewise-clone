@@ -1,4 +1,5 @@
 import json
+import traceback
 import torch
 import os
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
@@ -62,31 +63,53 @@ PLAIN_ENGLISH = {
 
 # ── Predict clause type using BERT ────────────────────────────────────────────
 def detect_type(text):
-    inputs = tokenizer(
-        text,
-        return_tensors="pt",
-        truncation=True,
-        max_length=128,
-        padding=True
-    )
+    try:
+        inputs = tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=128,
+            padding=True
+        )
 
-    inputs = {k: v.to(device) for k, v in inputs.items()}
+        inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    with torch.no_grad():                        # no gradient needed for inference
-        outputs = model(**inputs)
+        with torch.no_grad():
+            outputs = model(**inputs)
 
-    logits      = outputs.logits
-    predicted_id = torch.argmax(logits, dim=1).item()
-    clause_type  = label_map.get(predicted_id, "general")
+        logits      = outputs.logits
+        predicted_id = torch.argmax(logits, dim=1).item()
+        clause_type  = label_map.get(predicted_id, "general")
 
-    # get confidence score (0-100%)
-    probabilities = torch.softmax(logits, dim=1)
-    confidence    = probabilities[0][predicted_id].item()
+        probabilities = torch.softmax(logits, dim=1)
+        confidence    = probabilities[0][predicted_id].item()
 
-    return clause_type, round(confidence * 100, 1)
+        return clause_type, round(confidence * 100, 1)
+    except Exception as e:
+        print(f"[classifier] detect_type error: {e}")
+        traceback.print_exc()
+        return "general", 0.0
 
 def classify_all(clauses):
-    return [classify_clause(c) for c in clauses]
+    results = []
+    for clause in clauses:
+        try:
+            results.append(classify_clause(clause))
+        except Exception as e:
+            print(f"[classifier] classify_clause error on clause {clause.get('id', '?')}: {e}")
+            traceback.print_exc()
+            # Return a safe fallback for this clause
+            results.append({
+                **clause,
+                'type':         'general',
+                'confidence':   0.0,
+                'self_healed':  False,
+                'risk_level':   'low',
+                'flag_color':   'green',
+                'plain_english': PLAIN_ENGLISH.get('general', ''),
+                'is_risky':     False,
+            })
+    return results
 
 def classify_clause(clause):
     full_text         = clause.get('full_text', '')

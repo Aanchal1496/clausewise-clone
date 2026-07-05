@@ -1,3 +1,4 @@
+import traceback
 import chromadb
 from sentence_transformers import SentenceTransformer
 import uuid
@@ -16,17 +17,22 @@ def embed(text):
     return embedder.encode(text).tolist()
 
 def store_clause(clause_text, clause_type, risk_level, plain_english, contract_id=None):
-    collection.add(
-        ids        = [str(uuid.uuid4())],
-        embeddings = [embed(clause_text)],
-        documents  = [clause_text],
-        metadatas  = [{
-            'type':          clause_type,
-            'risk_level':    risk_level,
-            'plain_english': plain_english,
-            'contract_id':   contract_id or 'unknown',
-        }]
-    )
+    try:
+        collection.add(
+            ids        = [str(uuid.uuid4())],
+            embeddings = [embed(clause_text)],
+            documents  = [clause_text],
+            metadatas  = [{
+                'type':          clause_type,
+                'risk_level':    risk_level,
+                'plain_english': plain_english,
+                'contract_id':   contract_id or 'unknown',
+            }]
+        )
+    except Exception as e:
+        print(f"[rag_store] store_clause error: {e}")
+        traceback.print_exc()
+        raise  # re-raise so store_all_clauses knows this clause failed
 
 def retrieve_similar(clause_text, n=3):
     count = collection.count()
@@ -49,15 +55,20 @@ def retrieve_similar(clause_text, n=3):
     return similar
 
 def store_all_clauses(clauses, contract_id=None):
+    stored = 0
     for clause in clauses:
-        store_clause(
-            clause_text   = clause.get('full_text', ''),
-            clause_type   = clause.get('type', 'general'),
-            risk_level    = clause.get('risk_level', 'low'),
-            plain_english = clause.get('plain_english', ''),
-            contract_id   = contract_id,
-        )
-    print(f"* Stored {len(clauses)} clauses (total in DB: {collection.count()})")
+        try:
+            store_clause(
+                clause_text   = clause.get('full_text', ''),
+                clause_type   = clause.get('type', 'general'),
+                risk_level    = clause.get('risk_level', 'low'),
+                plain_english = clause.get('plain_english', ''),
+                contract_id   = contract_id,
+            )
+            stored += 1
+        except Exception as e:
+            print(f"[rag_store] Skipping clause {clause.get('id', '?')}: {e}")
+    print(f"* Stored {stored}/{len(clauses)} clauses (total in DB: {collection.count()})")
 
 def get_store_stats():
     return {'total_clauses_stored': collection.count()}

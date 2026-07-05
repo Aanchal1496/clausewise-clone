@@ -1,3 +1,4 @@
+import traceback
 import re
 import fitz  # PyMuPDF
 
@@ -29,28 +30,31 @@ def is_likely_title(line):
     return True
 
 def extract_clauses(pdf_input):
-    """
-    Extracts clauses from either PDF bytes or raw text.
-    Returns a list of dictionaries, each representing a clause.
-    """
-    import fitz
-    import re
-
-    # 1. Get raw text from input
-    if isinstance(pdf_input, bytes):
-        try:
-            pdf = fitz.open(stream=pdf_input, filetype="pdf")
-            text = ""
-            for page in pdf:
-                text += page.get_text()
-            pdf.close()
-        except Exception as e:
-            print(f"Error opening PDF: {e}")
-            return []
-    elif isinstance(pdf_input, str):
-        text = pdf_input
-    else:
+    try:
+        import fitz
+        import re
+    except Exception as e:
+        print(f"[extractor] Import error: {e}")
+        traceback.print_exc()
         return []
+
+    try:
+        # 1. Get raw text from input
+        if isinstance(pdf_input, bytes):
+            try:
+                pdf = fitz.open(stream=pdf_input, filetype="pdf")
+                text = ""
+                for page in pdf:
+                    text += page.get_text()
+                pdf.close()
+            except Exception as e:
+                print(f"[extractor] Error opening PDF: {e}")
+                traceback.print_exc()
+                return []
+        elif isinstance(pdf_input, str):
+            text = pdf_input
+        else:
+            return []
 
     # 2. Pre-process text
     text = text.replace('\xa0', ' ')
@@ -90,37 +94,41 @@ def extract_clauses(pdf_input):
                 'full_text': line
             }
 
-    if current_clause is not None and current_clause['body']:
-        clauses.append(current_clause)
-    elif current_clause is not None and not current_clause['body']:
-        # Merge empty trailing heading into last clause if possible
-        if clauses:
-            clauses[-1]['full_text'] += ' ' + current_clause['full_text']
-            clauses[-1]['title'] += ' - ' + current_clause['title']
+    try:
+        if current_clause is not None and current_clause['body']:
+            clauses.append(current_clause)
+        elif current_clause is not None and not current_clause['body']:
+            if clauses:
+                clauses[-1]['full_text'] += ' ' + current_clause['full_text']
+                clauses[-1]['title'] += ' - ' + current_clause['title']
 
-    # 4. Merge very short clauses (heading only or <10 words) into previous
-    merged = []
-    for c in clauses:
-        word_count = len(c['full_text'].split())
-        if word_count < 10 and merged:
-            merged[-1]['full_text'] += ' ' + c['full_text']
-            merged[-1]['title'] += ' / ' + c['title']
-            merged[-1]['body'].extend(c['body'])
-        else:
-            merged.append(c)
-    clauses = merged
+        # 4. Merge very short clauses
+        merged = []
+        for c in clauses:
+            word_count = len(c['full_text'].split())
+            if word_count < 10 and merged:
+                merged[-1]['full_text'] += ' ' + c['full_text']
+                merged[-1]['title'] += ' / ' + c['title']
+                merged[-1]['body'].extend(c['body'])
+            else:
+                merged.append(c)
+        clauses = merged
 
-    # 5. If still no clauses found, return the whole text as one clause
-    if not clauses and text.strip():
-        clauses.append({
-            'id': 1,
-            'title': "Full Document",
-            'body': [text.strip()],
-            'full_text': text.strip()
-        })
+        # 5. If still no clauses found, return the whole text as one clause
+        if not clauses and text.strip():
+            clauses.append({
+                'id': 1,
+                'title': "Full Document",
+                'body': [text.strip()],
+                'full_text': text.strip()
+            })
 
-    # Re-number IDs sequentially
-    for i, c in enumerate(clauses):
-        c['id'] = i + 1
+        # Re-number IDs sequentially
+        for i, c in enumerate(clauses):
+            c['id'] = i + 1
+    except Exception as e:
+        print(f"[extractor] Post-processing error: {e}")
+        traceback.print_exc()
+        return []
 
     return clauses
