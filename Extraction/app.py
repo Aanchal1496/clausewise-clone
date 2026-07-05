@@ -49,8 +49,6 @@ def home():
             'POST /full-analyze': 'Steps 1+2+3',
             'POST /report':       'Steps 1+2+3+4 via text',
             'POST /analyze-pdf':  'Steps 1+2+3+4 via PDF upload',
-            'POST /api/analyze':  'Full pipeline via base64 JSON',
-            'POST /api/extract':  'Extract text from PDF (diagnostic)',
         }
     })
 
@@ -113,17 +111,6 @@ def report():
     final['contract_id'] = contract_id
     
     return jsonify(final)
-
-@app.route('/api/extract', methods=['POST'])
-def api_extract():
-    """Diagnostic: just extract text from PDF, no pipeline."""
-    data = request.get_json()
-    if not data or 'pdf_base64' not in data:
-        return jsonify({'error': 'Send JSON with "pdf_base64" field'}), 400
-    import base64
-    pdf_bytes = base64.b64decode(data['pdf_base64'])
-    clauses = extract_clauses(pdf_bytes)
-    return jsonify({'ok': bool(clauses), 'count': len(clauses) if clauses else 0})
 
 @app.route('/api/analyze', methods=['POST'])
 def api_analyze():
