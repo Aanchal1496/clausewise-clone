@@ -138,7 +138,7 @@ export async function analyzePDF(file) {
     reader.readAsDataURL(file);
   });
 
-  const response = await fetch(`${BACKEND_URL}/api/analyze`, {
+  const response = await fetch(`${BACKEND_URL}/analyze-pdf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pdf_base64: base64 }),

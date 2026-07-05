@@ -112,21 +112,10 @@ def report():
     
     return jsonify(final)
 
-@app.route('/api/analyze', methods=['POST'])
-def api_analyze():
-    data = request.get_json()
-    if not data or 'pdf_base64' not in data:
-        return jsonify({'error': 'Send JSON with "pdf_base64" field'}), 400
-    import base64
-    try:
-        pdf_bytes = base64.b64decode(data['pdf_base64'])
-    except Exception as e:
-        return jsonify({'error': 'Invalid base64 data'}), 400
-
+def _process_pipeline(pdf_bytes):
     clauses = extract_clauses(pdf_bytes)
     if not clauses:
-        return jsonify({'error': 'Could not extract text from PDF'}), 400
-
+        return None
     classified = classify_all(clauses)
     translated = translate_all(classified)
     final = score_contract(translated)
@@ -134,7 +123,30 @@ def api_analyze():
     store_all_clauses(translated, contract_id=contract_id)
     final['contract_id'] = contract_id
     final['extracted_text'] = " ".join([c['full_text'] for c in clauses])
-    return jsonify(final)
+    return final
+
+@app.route('/analyze-pdf', methods=['POST'])
+def analyze_pdf():
+    if 'file' in request.files:
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'error': 'Only PDF files are supported'}), 400
+        pdf_bytes = file.read()
+    elif request.is_json:
+        data = request.get_json()
+        if not data or 'pdf_base64' not in data:
+            return jsonify({'error': 'Send JSON with "pdf_base64" field (base64-encoded PDF)'}), 400
+        import base64
+        pdf_bytes = base64.b64decode(data['pdf_base64'])
+    else:
+        return jsonify({'error': 'Send PDF as form-data with key "file" or JSON with "pdf_base64"'}), 400
+
+    result = _process_pipeline(pdf_bytes)
+    if result is None:
+        return jsonify({'error': 'Could not extract text from PDF. It may be a scanned image or protected.'}), 400
+    return jsonify(result)
 
 @app.errorhandler(500)
 def handle_500(e):
